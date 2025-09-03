@@ -48,14 +48,31 @@ def commands():
     return jsonify({'code': result, 'message': message}), 200
 
 
-@app.route('/ttyd/setpassword', strict_slashes=False)
+@app.route('/setpassword', strict_slashes=False)
 def setpassword():
     return send_file('setpassword.html')
 
+@app.route('/api/v1/password', methods=['POST'])
+def set_password():
+    if request.content_type != 'application/json':
+        return jsonify({'code': 10007, 'error': 'Request Content-Type is not json'}), 400
 
-@app.route('/public_key.asc')
-def public_key():
-    return send_file('data/public_key.asc')
+    try:
+        data = request.get_json()
+    except:
+        return jsonify({'code': 10008, 'error': 'Invalid json'}), 400
+    user = data.get('userid')
+    newpassword = data.get('newpassword')
+
+    if not (isinstance(user, str) and isinstance(newpassword, str)):
+        return jsonify({'code': 10009, 'error': 'Arguments must be strings'}), 400
+
+    if not user.isalnum():
+        return jsonify({'code': 10010, 'error': 'Invalid username'}), 400
+
+    verification_code = handler.passwords.set(user, newpassword)
+
+    return jsonify({'code': 0, 'success': True, 'code': verification_code}), 200
 
 
 @app.route('/api/v1/logs/<log_id>')

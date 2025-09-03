@@ -1,1 +1,3 @@
-docker build -t everyone-runner:universal .
+#!/bin/sh
+cd "$(dirname "$0")"
+docker build -t ero-runner:universal .

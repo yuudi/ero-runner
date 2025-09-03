@@ -9,7 +9,7 @@ from docker.models.containers import Container
 from docker.types import Ulimit
 
 import docker
-from config import BASE_URL, INACTIVE_TIMELIMIT, VSCODE_URL_PATTERN
+from config import BASE_URL, INACTIVE_TIMELIMIT
 from language_map import language_map
 from password import Passwords
 from scheduler import ShutdownManager
@@ -20,9 +20,9 @@ class MessageHandler:
     def __init__(self):
         self.docker_client = docker.from_env()
         try:
-            self.docker_client.networks.get('everyone-runner')
+            self.docker_client.networks.get('ero-runner')
         except docker.errors.NotFound:
-            self.docker_client.networks.create('everyone-runner')
+            self.docker_client.networks.create('ero-runner')
 
         self.tty_running_users = set()
         self.vscode_running_users = set()
@@ -34,14 +34,14 @@ class MessageHandler:
 
     def create_user_container(self, user: str) -> Container:
         container = self.docker_client.containers.run(
-            image="everyone-runner:universal",
-            name=f'everyone-runner-{user}',
+            image="ero-runner:universal",
+            name=f'ero-runner-{user}',
             user='1000',
-            network='everyone-runner',
+            network='ero-runner',
             entrypoint='',
             working_dir='/workspace',
             volumes={
-                f'everyone-runner-volume-workspace-{user}': {
+                f'ero-runner-volume-workspace-{user}': {
                     'bind': '/workspace',
                     'mode': 'rw',
                 },
@@ -59,8 +59,8 @@ class MessageHandler:
             #     Ulimit(name='nproc', hard=500, soft=500),
             # ],
             labels={
-                'app.name': 'everyone-runner',
-                'app.everyone-runner.user': user
+                'app.name': 'ero-runner',
+                'app.ero-runner.user': user
             },
         )
         return container
@@ -68,7 +68,7 @@ class MessageHandler:
     def shutdown_user_container(self, user: str):
         try:
             container = self.docker_client.containers.get(
-                f'everyone-runner-{user}'
+                f'ero-runner-{user}'
             )
         except docker.errors.NotFound:
             pass
@@ -80,7 +80,7 @@ class MessageHandler:
     def remove_user_container(self, user: str):
         try:
             container = self.docker_client.containers.get(
-                f'everyone-runner-{user}'
+                f'ero-runner-{user}'
             )
         except docker.errors.NotFound:
             pass
@@ -90,7 +90,7 @@ class MessageHandler:
     def get_running_user_container(self, user: str) -> Container:
         try:
             container = self.docker_client.containers.get(
-                f'everyone-runner-{user}')
+                f'ero-runner-{user}')
         except docker.errors.NotFound:
             return self.create_user_container(user)
         else:
@@ -162,7 +162,7 @@ class MessageHandler:
     def run_ttyd(self, user: str) -> tuple[int, str]:
         userinfo = self.passwords.get(user)
         if userinfo is None:
-            return 0, '请先设置密码' + BASE_URL + '/ttyd/setpassword'
+            return 0, '请先设置密码' + BASE_URL + '/setpassword'
         container = self.get_running_user_container(user)
         self.shutdown_jm.extend_shutdown_job(user)
         if user in self.tty_running_users:
@@ -171,7 +171,7 @@ class MessageHandler:
         user_colon_password = f'{user}:{password}'
         container.exec_run(
             cmd=[
-                'ttyd', '-b', f'/ttyd/user/{user}', '-c', user_colon_password, 'bash'
+                'ttyd', '-b', f'/ttyd/user/{user}', '-c', user_colon_password, '--writable', 'bash'
             ],
             workdir='/workspace',
             user='1000',
@@ -183,11 +183,11 @@ class MessageHandler:
     def run_vscode(self, user: str):
         userinfo = self.passwords.get(user)
         if userinfo is None:
-            return 0, '请先设置密码' + BASE_URL + '/ttyd/setpassword'
+            return 0, '请先设置密码' + BASE_URL + '/setpassword'
         container = self.get_running_user_container(user)
         self.shutdown_jm.extend_shutdown_job(user)
         if user in self.vscode_running_users:
-            return 0, '请在网站中继续' + VSCODE_URL_PATTERN.format(user=user)
+            return 0, '请在网站中继续' + BASE_URL + '/vscode/user/' + user + '/'
         password = userinfo['password']
         container.exec_run(
             cmd=[
@@ -199,7 +199,7 @@ class MessageHandler:
             detach=True,
         )
         self.vscode_running_users.add(user)
-        return 0, '请在网站中继续' + VSCODE_URL_PATTERN.format(user=user)
+        return 0, '请在网站中继续' + BASE_URL + '/vscode/user/' + user + '/'
 
     def run_reset(self, user: str) -> tuple[int, str]:
         self.shutdown_user_container(user)
@@ -216,23 +216,12 @@ class MessageHandler:
             'run reset 重置系统\n'
         )
 
-    def run_set_password(self, user: str, gpg_message: str) -> tuple[int, str]:
-        process = subprocess.run(
-            ['gpg', '--decrypt'],
-            input=gpg_message.encode(),
-            capture_output=True,
-        )
-        if process.returncode != 0:
-            return 0, 'gpg decrypt failed'
-        plaintext = process.stdout.decode().strip()
-        args = plaintext.split(':', maxsplit=1)
-        if len(args) != 2:
-            return 0, 'gpg message not match'
-        if args[0] != user:
-            return 0, 'gpg message not match'
-        password = args[1]
-        self.passwords.set(user, password)
-        return 0, '密码设置成功'
+    def run_set_password(self, user: str, verification_code: str) -> tuple[int, str]:
+        success, message = self.passwords.verify(user, verification_code)
+        if success:
+            return 0, '密码设置成功'
+        else:
+            return 0, message
 
     def handle(self, user: str, user_input: str) -> tuple[int, str]:
         if user_input.startswith('run\n'):

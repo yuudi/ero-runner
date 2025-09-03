@@ -1,7 +1,8 @@
 import os
-from itertools import tee
 from threading import Thread
 from typing import Iterator
+
+from config import LOG_PATH
 
 VIER_STATUS_FINISHED = 0
 VIER_STATUS_RUNNING = 1
@@ -26,6 +27,8 @@ class LogIterator:
 
 class Viewer:
     def __init__(self):
+        if not os.path.exists(LOG_PATH):
+            os.makedirs(LOG_PATH)
         self.running_viewers: dict[str, LogIterator] = {}
 
     def create_log_viewer(self, name: str, log_iterator: Iterator[str]):
@@ -42,7 +45,7 @@ class Viewer:
 
     def viewer_finished(self, name):
         log_iterator = self.running_viewers.pop(name)
-        with open(f'logs/{name}.log', 'w') as f:
+        with open(f'{LOG_PATH}/{name}.log', 'w') as f:
             f.write('\n'.join(log_iterator.log))
 
     def get_log_viewer(self, name, offset=0) -> tuple[int, list[str]]:
@@ -50,8 +53,8 @@ class Viewer:
             if offset >= len(n.log):
                 return VIER_STATUS_RUNNING, []
             return VIER_STATUS_RUNNING, n.log[offset:]
-        if os.path.exists(f'logs/{name}.log'):
-            with open(f'logs/{name}.log') as f:
+        if os.path.exists(f'{LOG_PATH}/{name}.log'):
+            with open(f'{LOG_PATH}/{name}.log') as f:
                 lines = f.readlines()
             if offset >= len(lines):
                 return VIER_STATUS_FINISHED, []

@@ -1,10 +1,19 @@
 :8080 {
-    reverse_proxy /ttyd/user/* everyone-runner-{http.request.uri.path.2}:7681
-    reverse_proxy * runner-admin:8000
+    handle /ttyd/user/* {
+        reverse_proxy ero-runner-{http.request.uri.path.2}:7681
+    }
+    handle /vscode/user/* {
+        vars user {http.request.uri.path.2}
+        uri strip_prefix /vscode/user/{vars.user}
+        reverse_proxy ero-runner-{vars.user}:8080
+    }
+    handle {
+        reverse_proxy runner-admin:8000
+    }
     handle_errors {
         @error502 expression "{http.error.status_code} == 502"
         handle @error502 {
-            respond "ttyd is not running"
+            respond "user service is not running"
         }
         handle {
 		    respond "{http.error.status_code} {http.error.status_text}"
@@ -12,15 +21,3 @@
 	}
 }
 
-:8081 {
-    reverse_proxy * everyone-runner-{http.request.host.labels.2}:8080
-    handle_errors {
-        @error502 expression "{http.error.status_code} == 502"
-        handle @error502 {
-            respond "ttyd is not running"
-        }
-        handle {
-		    respond "{http.error.status_code} {http.error.status_text}"
-        }
-	}
-}

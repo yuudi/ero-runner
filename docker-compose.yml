@@ -1,0 +1,35 @@
+services:
+  runner-admin:
+    build: .
+    environment:
+      BASE_URL: ${BASE_URL:-http://localhost:8080}
+      API_SECRET: ${API_SECRET:-your-secret}
+    volumes:
+      - ./logs:/var/log/ero-runner
+      - ./data:/var/lib/ero-runner
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      default:
+      ero-runner:
+
+
+  caddy:
+    image: caddy:2
+    restart: 'unless-stopped'
+    ports:
+      - 8080:8080
+    volumes:
+      - caddy_data:/data
+      - ./reverse_proxy/Caddyfile:/etc/caddy/Caddyfile
+    networks:
+      default:
+      ero-runner:
+
+
+networks:
+  ero-runner:
+    external: true
+    name: ero-runner
+
+volumes:
+  caddy_data:
