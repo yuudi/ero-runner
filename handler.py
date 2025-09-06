@@ -1,15 +1,13 @@
 import io
 import random
 import string
-import subprocess
 import tarfile
 import time
 
 from docker.models.containers import Container
-from docker.types import Ulimit
 
 import docker
-from config import BASE_URL, INACTIVE_TIMELIMIT
+from config import BASE_URL, CPU_PERIOD, CPU_QUOTA, MEM_LIMIT, INACTIVE_TIMELIMIT, STORAGE_LIMIT
 from language_map import language_map
 from password import Passwords
 from scheduler import ShutdownManager
@@ -46,15 +44,15 @@ class MessageHandler:
                     'mode': 'rw',
                 },
             },
-            command='sleep infinity',
+            command='sleep 7d',
             detach=True,
             auto_remove=False,
-            cpu_period=100000,
-            cpu_quota=100000,
-            mem_limit='512m',
-            # storage_opt={
-            #     'size': '5G',
-            # },
+            cpu_period=CPU_PERIOD,
+            cpu_quota=CPU_QUOTA,
+            mem_limit=MEM_LIMIT,
+            storage_opt={
+                'size': STORAGE_LIMIT,
+            },
             # ulimits=[
             #     Ulimit(name='nproc', hard=500, soft=500),
             # ],

@@ -2,8 +2,8 @@ services:
   runner-admin:
     build: .
     environment:
-      BASE_URL: ${BASE_URL:-http://localhost:8080}
-      API_SECRET: ${API_SECRET:-your-secret}
+      ERO_BASE_URL: ${BASE_URL:-http://localhost:8080}
+      ERO_API_SECRET: ${API_SECRET:-your-secret}
     volumes:
       - ./logs:/var/log/ero-runner
       - ./data:/var/lib/ero-runner
