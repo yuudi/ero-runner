@@ -1,7 +1,9 @@
 language_map = {
     "js": "node {fileName}",
     "javascript": "node {fileName}",
-    "java": "(cd {dir} && javac {fileName}) && java {dir}{fileNameWithoutExt}",
+    "java": ("classname=$(grep -oP '(?<=public class )\\w+' {dir}{fileName} | head -1) && "
+             "(cd {dir} && cp {fileName} \"$classname\" && javac \"$classname.java\") && "
+             "java -cp {dir} $classname"),
     "c": "(cd {dir} && gcc {fileName} -o {fileNameWithoutExt}) && {dir}{fileNameWithoutExt}",
     "cpp": "(cd {dir} && g++ {fileName} -o {fileNameWithoutExt} )&& {dir}{fileNameWithoutExt}",
     "objective-c": "(cd {dir} && gcc -framework Cocoa {fileName} -o {fileNameWithoutExt}) && {dir}{fileNameWithoutExt}",
