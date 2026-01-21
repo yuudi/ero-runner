@@ -209,14 +209,17 @@ class MessageHandler:
     def get_help_message(self) -> str:
         return (
             'run [language] [code] 执行代码\n'
-            'run ttyd 网页shell\n'
+            'run tty 网页终端\n'
             'run vscode 网页vscode\n'
             'run reset 重置系统\n'
+            'run auth 设置/重置密码\n'
         )
 
     def run_set_password(self, user: str, verification_code: str) -> tuple[int, str]:
         success, message = self.passwords.verify(user, verification_code)
         if success:
+            # Existing containers need to be restarted to apply the new password
+            self.shutdown_user_container(user)
             return 0, '密码设置成功'
         else:
             return 0, message
@@ -236,7 +239,7 @@ class MessageHandler:
         args = user_input.split(maxsplit=2)
         if len(args) == 2:
             match args[1]:
-                case 'ttyd' | 'shell':
+                case 'tty' | 'ttyd' | 'shell' | 'terminal':
                     return self.run_ttyd(user)
                 case 'vscode' | 'code':
                     return self.run_vscode(user)
@@ -244,6 +247,8 @@ class MessageHandler:
                     return 0, self.get_help_message()
                 case 'reset':
                     return self.run_reset(user)
+                case 'auth' | 'password':
+                    return 0, '请设置密码' + BASE_URL + '/setpassword'
                 case _:
                     return 0, 'script needed'
         if len(args) != 3:
